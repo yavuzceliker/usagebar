@@ -30,13 +30,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { await model.tick(force: true) }
         // Tick every 15s; each account decides whether it is due (Claude only every 60s).
         pollTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
-            Task { @MainActor in await self?.model.tick() }
+            Task { @MainActor [weak self] in await self?.model.tick() }
         }
         scheduleBlink()
 
         // Refresh right after waking from sleep instead of waiting for the next tick.
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in await self?.model.tick(force: true) }
+            Task { @MainActor [weak self] in await self?.model.tick(force: true) }
         }
     }
 
@@ -45,7 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let interval = Heat.blinkInterval(ratio: active.map { model.state($0).ratio } ?? 0,
                                           flashing: active.map(model.isFlashing) ?? false)
         blinkTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.dotOn.toggle()
                 self.redraw()
