@@ -1,0 +1,19 @@
+name: Feature request
+description: A new provider, language or idea
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like UsageBar to do?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would it help you?
+  - type: textarea
+    id: source
+    attributes:
+      label: For a new provider, where could the numbers come from?
+      description: An API, a local file, a dashboard page…

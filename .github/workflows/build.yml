@@ -1,0 +1,34 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build universal app
+        run: ./macos/build.sh
+      - name: Render demo snapshot
+        run: macos/build/UsageBar.app/Contents/MacOS/UsageBar --snapshot "$RUNNER_TEMP/shots" --demo
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check PowerShell syntax
+        shell: powershell
+        run: |
+          $failed = $false
+          foreach ($f in Get-ChildItem windows\*.ps1) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errors) | Out-Null
+            if ($errors) { $failed = $true; $errors | ForEach-Object { Write-Host "$($f.Name): $($_.Message) (line $($_.Extent.StartLineNumber))" } }
+          }
+          if ($failed) { exit 1 }

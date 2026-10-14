@@ -1,0 +1,18 @@
+UsageBar (Windows) - Cursor ve Claude Code kullanimi
+
+Kurmak: Kur.bat dosyasina cift tikla.
+Cubuk ekranin ust ortasinda cikar, Windows her acildiginda kendiliginden baslar.
+(Eski "Cursor Extra Spend" surumu varsa otomatik kaldirilir.)
+
+Hesaplar kendiliginden bulunur:
+  Cursor:  %APPDATA%\Cursor  ve  %USERPROFILE%\.cursor-<isim>   (cursor --user-data-dir ile acilanlar)
+  Claude:  %USERPROFILE%\.claude  ve  %USERPROFILE%\.claude-<isim>  (CLAUDE_CONFIG_DIR ile)
+Ilgili uygulamada giris yapilmis olmasi yeterli.
+
+Kullanim:
+  Cubuk: en son istek atilan hesap (nokta, hesap adi, tutar, iki kucuk kullanim cubugu).
+  Sol tik: tum hesaplarin detay paneli (en ustte aktif olan).
+  Sag tik: hangi hesaplar gosterilsin, yenile, kullanim paneli, kapat.
+  Surukleyerek tasinabilir.
+
+Kaldirmak: Kaldir.bat

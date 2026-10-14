@@ -1,0 +1,37 @@
+name: Bug report
+description: Something shows the wrong number, crashes or looks broken
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for reporting! **Please remove emails, tokens and amounts you don't want public** from anything you paste."
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [macOS, Windows]
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS version
+      placeholder: macOS 15.1 / Windows 11 24H2
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      multiple: true
+      options: [Cursor, Claude, Both / not sure]
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: probe
+    attributes:
+      label: Error text or `-Probe` output (Windows)
+      description: The tooltip or red error line from the panel, or the output of `powershell -File UsageBar.ps1 -Probe`.
+      render: text

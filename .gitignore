@@ -1,0 +1,7 @@
+.DS_Store
+macos/.build/
+macos/build/
+*.xcodeproj/
+.swiftpm/
+*.zip
+snapshots/

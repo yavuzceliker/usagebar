@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build universal app
+        run: VERSION="${GITHUB_REF_NAME#v}" ./macos/build.sh
+      - name: Package
+        run: |
+          ditto -c -k --keepParent macos/build/UsageBar.app UsageBar-macOS.zip
+          (cd windows && zip -r ../UsageBar-Windows.zip .)
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" UsageBar-macOS.zip UsageBar-Windows.zip \
+            --title "UsageBar $GITHUB_REF_NAME" --generate-notes
