@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Windows: `-Snapshot <dir> [-Demo] [-Lang en|tr]` renders the strip and the panel to PNG files.
+- README: Windows screenshots.
+
 ## 1.0.0 (2026-10-14)
 
 First public release.

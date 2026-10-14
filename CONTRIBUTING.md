@@ -49,6 +49,8 @@ build/UsageBar.app/Contents/MacOS/UsageBar --snapshot ../docs --demo   # README 
 ```powershell
 powershell -ExecutionPolicy Bypass -File windows\UsageBar.ps1 -Probe   # accounts + numbers, no UI
 powershell -ExecutionPolicy Bypass -File windows\UsageBar.ps1          # run the strip
+powershell -ExecutionPolicy Bypass -File windows\UsageBar.ps1 -Snapshot $env:TEMP\shots   # render the UI with your real accounts
+powershell -ExecutionPolicy Bypass -File windows\UsageBar.ps1 -Snapshot docs -Demo -Lang en   # README screenshots with fake data
 ```
 
 Keep `UsageBar.ps1` saved as **UTF-8 with BOM** and compatible with Windows PowerShell 5.1 (no PowerShell 7-only syntax), so it runs on a stock Windows install.
@@ -56,7 +58,7 @@ Keep `UsageBar.ps1` saved as **UTF-8 with BOM** and compatible with Windows Powe
 ## Ground rules
 
 - **Never log, print, store or send tokens** anywhere other than the vendor's own API. Credentials are read-only: UsageBar must never refresh or rewrite a Claude or Cursor login.
-- Do not commit screenshots that show real emails or spend. Use `--snapshot ... --demo`.
+- Do not commit screenshots that show real emails or spend. Use `--snapshot ... --demo` on macOS or `-Snapshot ... -Demo` on Windows.
 - Keep it small: no new dependencies unless there is a strong reason.
 - Match the surrounding code style. Keep PRs focused on one thing.
 

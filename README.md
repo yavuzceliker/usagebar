@@ -11,9 +11,22 @@
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
+<table>
+<tr>
+<th>macOS</th>
+<th>Windows</th>
+</tr>
+<tr>
+<td align="center" valign="top">
 <img src="docs/menubar-dark.png" alt="UsageBar in the macOS menu bar: an orange dot, the account tag 'work', $12.34 and two tiny usage bars" height="44">
-
+<br>
 <img src="docs/popover-dark.png" alt="UsageBar panel showing a Claude account with session and weekly limits and two Cursor accounts with spend and plan usage" width="340">
+</td>
+<td align="center" valign="top">
+<img src="docs/windows-desktop.png" alt="UsageBar on Windows: the strip at the top center of the desktop with the detail panel open under it" width="340">
+</td>
+</tr>
+</table>
 
 </div>
 
@@ -56,6 +69,8 @@ Then open the panel, click the gear and turn on **Launch at login**. To remove i
 1. Download `UsageBar-Windows.zip` from the [latest release](https://github.com/yavuzceliker/usagebar/releases/latest) (or the [`windows/`](windows/) folder) and unzip it.
 2. Double-click `Kur.bat`. It copies the script to `%LOCALAPPDATA%\UsageBar`, adds it to Startup and starts it.
 3. A small always-on-top strip appears at the top center of the screen. Drag it anywhere. **Left-click** opens the detail panel; **right-click** picks accounts, refreshes, opens the dashboards or quits.
+
+<img src="docs/windows-strip.png" alt="The UsageBar strip on Windows: an orange dot, the account tag 'work', $12.34 and two tiny usage bars" height="40">
 
 Run `Kaldir.bat` to remove it. To check what it sees without any UI: `powershell -File UsageBar.ps1 -Probe`.
 
@@ -144,6 +159,10 @@ cd macos
 swift build                                   # debug build
 ./build.sh                                    # release .app in macos/build/
 build/UsageBar.app/Contents/MacOS/UsageBar --snapshot ../docs --demo   # regenerate the screenshots with fake data
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File windows\UsageBar.ps1 -Snapshot docs -Demo -Lang en   # Windows screenshots with fake data
 ```
 
 If UsageBar saves you from a surprise bill, a ⭐ helps other people find it.

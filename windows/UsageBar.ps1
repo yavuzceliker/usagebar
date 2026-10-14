@@ -8,8 +8,9 @@
 # - Tokens are read from the official apps' own local login on every request; never written or logged.
 #
 #   powershell -File UsageBar.ps1 -Probe    prints every account and its usage, without the UI.
+#   powershell -File UsageBar.ps1 -Snapshot <dir> [-Demo] [-Lang en]    writes PNGs of the strip and the panel.
 
-param([switch]$Probe)
+param([switch]$Probe, [string]$Snapshot, [switch]$Demo, [ValidateSet("", "en", "tr")][string]$Lang = "")
 
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Net.Http
@@ -20,6 +21,7 @@ Add-Type -AssemblyName System.Net.Http
 # ---------------------------------------------------------------------------------------------
 
 $script:TR = (Get-UICulture).TwoLetterISOLanguageName -eq "tr" -or (Get-Culture).TwoLetterISOLanguageName -eq "tr"
+if ($Lang) { $script:TR = $Lang -eq "tr" }
 function T([string]$en, [string]$tr) { if ($script:TR) { $tr } else { $en } }
 
 $L = @{
@@ -133,7 +135,7 @@ function Read-Settings {
 }
 
 function Save-Settings {
-    if ($Probe) { return }
+    if ($Probe -or $Snapshot) { return }
     try {
         New-Item -ItemType Directory -Force -Path $settingsDir | Out-Null
         $data = @{ disabled = @($script:disabled.Keys); lastActive = $script:lastActive }
@@ -559,13 +561,52 @@ function Invoke-Tick([bool]$force) {
     foreach ($a in Get-VisibleAccounts) { Start-Refresh $a $force }
 }
 
-Read-Settings
+function Import-Demo {
+    function Iso([double]$hours) { [DateTimeOffset]::UtcNow.AddHours($hours).ToString("o", $Inv) }
+    $claude = New-Account "claude" "%USERPROFILE%\.claude-work" $false "you@example.com" "work"
+    $cursorWork = New-Account "cursor" "%USERPROFILE%\.cursor-work" $false "you@example.com" "work"
+    $cursorHome = New-Account "cursor" "%APPDATA%\Cursor" $true "you@example.com" "Cursor"
+    $cycleEnd = ((Get-Now) + 12 * 86400) * 1000
 
-if ($Probe) {
+    $claudeJson = @"
+{ "five_hour": { "utilization": 42, "resets_at": "$(Iso 2.2)" },
+  "seven_day": { "utilization": 67, "resets_at": "$(Iso 81)" },
+  "seven_day_opus": { "utilization": 18, "resets_at": "$(Iso 81)" },
+  "extra_usage": { "is_enabled": true, "used_credits": 1234, "monthly_limit": 5000, "currency": "USD" } }
+"@ | ConvertFrom-Json
+    $workJson = @"
+{ "spendLimitUsage": { "limitType": "team", "pooledUsed": 4210, "individualUsed": 1180, "pooledLimit": 20000 },
+  "planUsage": { "totalSpend": 2000, "limit": 2000, "autoPercentUsed": 64, "apiPercentUsed": 38 },
+  "billingCycleEnd": $($cycleEnd.ToString("0", $Inv)) }
+"@ | ConvertFrom-Json
+    $homeJson = @"
+{ "spendLimitUsage": { "individualUsed": 0, "individualLimit": 1000 },
+  "planUsage": { "totalSpend": 740, "limit": 2000, "autoPercentUsed": 23, "apiPercentUsed": 9 },
+  "billingCycleEnd": $($cycleEnd.ToString("0", $Inv)) }
+"@ | ConvertFrom-Json
+
+    $script:accounts = @($claude, $cursorWork, $cursorHome)
+    $script:disabled = @{}
+    $now = Get-Now
+    $script:lastActive = @{ $claude.Id = $now; $cursorWork.Id = $now - 600; $cursorHome.Id = $now - 7200 }
+    $snaps = @((ConvertFrom-ClaudeUsage $claudeJson "max"), (ConvertFrom-CursorUsage $workJson), (ConvertFrom-CursorUsage $homeJson))
+    for ($i = 0; $i -lt 3; $i++) {
+        $st = Get-State $script:accounts[$i]
+        $st.Snapshot = $snaps[$i]
+        $st.Updated = Get-Date
+    }
+}
+
+if ($Snapshot -and $Demo) { Import-Demo } else { Read-Settings }
+
+if ($Probe -or ($Snapshot -and -not $Demo)) {
     Update-Accounts
     Invoke-Tick $true
     foreach ($st in @($script:states.Values)) { if ($st.Pending) { try { [void]$st.Pending.Wait(25000) } catch { } } }
     [void](Receive-Results)
+}
+
+if ($Probe) {
     $visible = Get-VisibleAccounts
     if ($visible.Count -eq 0) { Write-Output $L.noAccounts }
     foreach ($a in $visible) {
@@ -610,11 +651,13 @@ namespace UsageBar {
 [System.Windows.Forms.Application]::SetUnhandledExceptionMode([System.Windows.Forms.UnhandledExceptionMode]::CatchException)
 [System.Windows.Forms.Application]::add_ThreadException({ })
 
-$mutex = New-Object System.Threading.Mutex($false, "Local\UsageBar.Strip")
-$owned = $false
-try { $owned = $mutex.WaitOne(0, $false) }
-catch [System.Threading.AbandonedMutexException] { $owned = $true }
-if (-not $owned) { exit 0 }
+if (-not $Snapshot) {
+    $mutex = New-Object System.Threading.Mutex($false, "Local\UsageBar.Strip")
+    $owned = $false
+    try { $owned = $mutex.WaitOne(0, $false) }
+    catch [System.Threading.AbandonedMutexException] { $owned = $true }
+    if (-not $owned) { exit 0 }
+}
 
 function C([int]$red, [int]$green, [int]$blue, [int]$alpha = 255) { [System.Drawing.Color]::FromArgb($alpha, $red, $green, $blue) }
 
@@ -664,6 +707,7 @@ $measureBitmap = New-Object System.Drawing.Bitmap 1, 1
 $script:mg = [System.Drawing.Graphics]::FromImage($measureBitmap)
 $script:mg.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::ClearTypeGridFit
 $script:scale = [math]::Max(1.0, $script:mg.DpiX / 96.0)
+if ($Snapshot) { $script:scale = 2.0 }
 $s = $script:scale
 
 function New-Font([string]$family, [double]$size) {
@@ -946,6 +990,69 @@ function Invoke-PanelLayout($g, [bool]$draw) {
         $y = Invoke-AccountLayout $g $draw $visible[$i] ($i -eq 0) $y
     }
     return [int]($y + $Pad)
+}
+
+# --- snapshot mode: render the strip and panel to PNG files and exit ---
+
+function New-Rendered([int]$w, [int]$h, [scriptblock]$paint) {
+    $box = [pscustomobject]@{ Width = $w; Height = $h }
+    $flat = New-Object System.Drawing.Bitmap $w, $h
+    $g = [System.Drawing.Graphics]::FromImage($flat)
+    Draw-Frame $g $box
+    $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+    & $paint $g
+    $g.Dispose()
+
+    $out = New-Object System.Drawing.Bitmap $w, $h, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $g = [System.Drawing.Graphics]::FromImage($out)
+    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+    $g.Clear([System.Drawing.Color]::Transparent)
+    $tex = New-Object System.Drawing.TextureBrush $flat
+    $p = New-RoundPath 0 0 $w $h ([math]::Min(8 * $s, $h / 2))
+    $g.FillPath($tex, $p)
+    $p.Dispose(); $tex.Dispose(); $g.Dispose(); $flat.Dispose()
+    return $out
+}
+
+if ($Snapshot) {
+    New-Item -ItemType Directory -Force -Path $Snapshot | Out-Null
+    $dir = (Resolve-Path -LiteralPath $Snapshot).Path
+    foreach ($a in Get-VisibleAccounts) { Write-Output ("{0}: {1}" -f $a.Id, $(if ((Get-State $a).Snapshot) { (Get-State $a).Snapshot.Headline } else { "-" })) }
+
+    $script:blinkOn = $true
+    $stripW = Invoke-StripLayout $script:mg $false
+    $strip = New-Rendered $stripW $StripH { param($g) [void](Invoke-StripLayout $g $true) }
+    $panelH = Invoke-PanelLayout $script:mg $false
+    $panelImg = New-Rendered $PanelW $panelH { param($g) [void](Invoke-PanelLayout $g $true) }
+    $strip.Save((Join-Path $dir "windows-strip.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $panelImg.Save((Join-Path $dir "windows-panel.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+
+    # The strip at the top center of a desktop with the panel open under it, as it looks in use.
+    $gap = [int](6 * $s); $top = [int](8 * $s); $margin = [int](48 * $s)
+    $cw = [math]::Max($PanelW, $stripW) + 2 * $margin
+    $ch = $top + $StripH + $gap + $panelH + $margin
+    $desk = New-Object System.Drawing.Bitmap $cw, $ch
+    $g = [System.Drawing.Graphics]::FromImage($desk)
+    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+    $rect = New-Object System.Drawing.Rectangle 0, 0, $cw, $ch
+    $bg = New-Object System.Drawing.Drawing2D.LinearGradientBrush $rect, (C 22 38 70), (C 58 30 74), ([single]35)
+    $g.FillRectangle($bg, $rect)
+    $bg.Dispose()
+    $sx = [int](($cw - $stripW) / 2); $px = [int](($cw - $PanelW) / 2)
+    foreach ($shadow in @(@($sx, $top, $stripW, $StripH), @($px, ($top + $StripH + $gap), $PanelW, $panelH))) {
+        for ($k = 1; $k -le 6; $k++) {
+            $sp = New-RoundPath ($shadow[0] - $k) ($shadow[1] - $k + 2 * $s) ($shadow[2] + 2 * $k) ($shadow[3] + 2 * $k) (8 * $s + $k)
+            $g.FillPath((Get-Brush (C 0 0 0 (14 - 2 * $k))), $sp)
+            $sp.Dispose()
+        }
+    }
+    $g.DrawImage($strip, $sx, $top, $stripW, $StripH)
+    $g.DrawImage($panelImg, $px, ($top + $StripH + $gap), $PanelW, $panelH)
+    $g.Dispose()
+    $desk.Save((Join-Path $dir "windows-desktop.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $desk.Dispose(); $strip.Dispose(); $panelImg.Dispose()
+    Write-Output "Saved windows-strip.png, windows-panel.png and windows-desktop.png to $dir"
+    exit 0
 }
 
 # --- forms ---
